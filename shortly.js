@@ -23,24 +23,56 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 
-app.get('/', 
+app.get('/',
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
+app.get('/create',
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links',
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
   });
 });
 
-app.post('/links', 
+app.post('/signup',
+  function(req, res) {
+    console.log('this is creating username ', req.body);
+    var username = req.body.username;
+    var password = req.body.password;
+    //console.log('username', username);
+    //console.log('password', password);
+    if (!username || !password) {
+      console.log('username or password is not valid');
+      res.sendStatus(404);
+    } else {
+      console.log('Finished posting username', username);
+      new User({
+        username: username
+        //password: password
+      }).fetch().then(function (found) {
+        console.log('this is false', found);
+        if (found) {
+          res.status(200).send(found.attributes);
+        } else {
+          Users.create({
+            username: username,
+            password: password
+          })
+          .then(function () {
+            res.status(200).send('username has been recorded');
+          });
+        };
+      });
+    };
+})
+
+app.post('/links',
 function(req, res) {
   var uri = req.body.url;
 
