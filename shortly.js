@@ -1,4 +1,5 @@
 var express = require('express');
+var session = require('express-session');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
@@ -21,11 +22,27 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(session({
+  secret: 'unicornKiller',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: true }
+}));
+////////
+//use middleware here for sessions and possible cookies
+  //app.use(express.session());
 
 
 app.get('/',
 function(req, res) {
-  res.render('index');
+  console.log('Session', req.session);
+  restrict(req, res, function() {
+    res.render('index');
+  });
+});
+
+app.get('/login', function (req, res) {
+  res.render('login');
 });
 
 app.get('/create',
@@ -35,42 +52,68 @@ function(req, res) {
 
 app.get('/links',
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.status(200).send(links.models);
+  restrict(req, res, function() {
+    Links.reset().fetch().then(function(links) {
+      res.status(200).send(links.models);
+    });
   });
 });
 
-app.post('/signup',
-  function(req, res) {
-    console.log('this is creating username ', req.body);
+app.post('/login',
+  function (req, res) {
     var username = req.body.username;
     var password = req.body.password;
-    //console.log('username', username);
-    //console.log('password', password);
     if (!username || !password) {
-      console.log('username or password is not valid');
       res.sendStatus(404);
     } else {
-      console.log('Finished posting username', username);
       new User({
         username: username
-        //password: password
       }).fetch().then(function (found) {
-        console.log('this is false', found);
         if (found) {
-          res.status(200).send(found.attributes);
+          if (password === found.attributes.password) {
+            console.log('You have logged in!');
+            //create session here;
+            req.session.regenerate(function() {
+              req.session.user = username;
+              res.redirect('/');
+            });
+          } else {
+            console.log('Password was invalid');
+            res.redirect(404, '/login');
+          }
         } else {
-          Users.create({
-            username: username,
-            password: password
-          })
-          .then(function () {
-            res.status(200).send('username has been recorded');
-          });
-        };
+          console.log('Username or password was invalid');
+          res.redirect(404, '/login');
+        }
       });
-    };
-})
+    }
+  });
+
+app.post('/signup',
+function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+  if (!username || !password) {
+    console.log('username or password is not valid');
+    res.sendStatus(404);
+  } else {
+    new User({
+      username: username
+    }).fetch().then(function (found) {
+      if (found) {
+        res.status(200).send(found.attributes);
+      } else {
+        Users.create({
+          username: username,
+          password: password
+        })
+        .then(function () {
+          res.status(200).send('username has been recorded');
+        });
+      }
+    });
+  }
+});
 
 app.post('/links',
 function(req, res) {
@@ -104,9 +147,18 @@ function(req, res) {
   });
 });
 
+
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
+function restrict(req, res, next) {
+  if (req.session.user) {
+    next();
+  } else {
+    req.session.error = 'Access denied!';
+    res.redirect('/login');
+  }
+}
 
 
 
