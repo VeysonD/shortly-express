@@ -44,12 +44,25 @@ app.get('/login', function (req, res) {
   res.render('login');
 });
 
+//create button for logout
+
+app.get('/logout', function(request, response) {
+  request.session.destroy(function() {
+    response.redirect('/login');
+  });
+});
+
+
 app.get('/create',
 function(req, res) {
   restrict(req, res, function() {
     res.render('index');
   });
+});
 
+app.get('/signup',
+function(req, res) {
+  res.render('signup');
 });
 
 app.get('/links',
