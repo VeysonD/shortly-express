@@ -9,19 +9,29 @@ var User = db.Model.extend({
   hasTimeStamps: true,
   initialize: function () {
     this.on('creating', function (model, attrs, options) {
+      this.createHash(model.attributes.password);
+    });
+  },
 
-      var hash = bcrypt.hashSync(model.attributes.password);
-      //console.log('Hashpassword', hash);
+  createHash: function (password) {
+    //console.log('createHash password', password);
+    var cypher = Promise.promisify(bcrypt.hash);
+    cypher(password, null, null)
+    .bind(this)
+    .then(function(hash) {
+      this.set('password', hash);
+    });
+  },
 
-      //sets the password to the plan text
-      // model.set('sword', model.attributes.password);
-
-      //sets the password to hash in the users table
-      model.set('password', hash);
-
-      //hash.update(model.get('password'));
+  compare: function (password, hash, callback) {
+    bcrypt.compare(password, hash, function (err, res) {
+      if (err) {
+        return console.log(err);
+      }
+      callback(res);
     });
   }
+
 });
 
 module.exports = User;

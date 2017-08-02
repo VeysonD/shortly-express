@@ -2,6 +2,7 @@ var express = require('express');
 var session = require('express-session');
 var util = require('./lib/utility');
 var partials = require('express-partials');
+var bcrypt = require('bcrypt-nodejs');
 var bodyParser = require('body-parser');
 
 
@@ -28,10 +29,10 @@ app.use(session({
   saveUninitialized: false
   //cookie: { secure: true }
 }));
-////////
-//use middleware here for sessions and possible cookies
-  //app.use(express.session());
 
+//Create button for logout
+//foreign userids in linklist to display links only for that user
+//Create some tests
 
 app.get('/',
 function(req, res) {
@@ -130,27 +131,22 @@ app.post('/login',
       new User({
         username: username
       }).fetch().then(function (found) {
-        if (found) {
-          if (password === found.attributes.password) {
-            console.log('You have logged in!');
-
-            req.session.regenerate(function() {
-              req.session.user = username;
-              //console.log('logging in session after', req.session);
-              res.redirect('/');
-            });
-          } else {
-            console.log('Password was invalid');
-            res.redirect(404, '/login');
-          }
+        if (!found) {
+          res.redirect('/login');
         } else {
-          console.log('Username or password was invalid');
-          res.redirect(404, '/login');
+          bcrypt.compare(password, this.get('password'), function(err, match) {
+            if (match) {
+              req.session.user = username;
+              res.redirect('/');
+            } else {
+              res.redirect('/');
+            }
+          });
         }
       });
     }
   });
-
+//
 app.post('/signup',
 function(req, res) {
   var username = req.body.username;
@@ -163,16 +159,19 @@ function(req, res) {
       username: username
     }).fetch().then(function (found) {
       if (found) {
+        console.log('Username has been taken');
         res.status(200).send(found.attributes);  //username taken
       } else {
-        Users.create({
-          username: username,
-          password: password
-        })
-        .then(function () {
-          req.session.regenerate(function() {
-            req.session.user = username;
-            res.redirect('/');
+        bcrypt.hash(password, null, null, function(err, hash) {
+          Users.create({
+            username: username,
+            password: hash
+          })
+          .then(function () {
+            req.session.regenerate(function() {
+              req.session.user = username;
+              res.redirect('/');
+            });
           });
         });
       }
@@ -180,7 +179,7 @@ function(req, res) {
   }
 });
 
-
+//
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
 // assume the route is a short code and try and handle it here.
