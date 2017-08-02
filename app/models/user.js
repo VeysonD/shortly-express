@@ -14,7 +14,6 @@ var User = db.Model.extend({
   },
 
   createHash: function (password) {
-    //console.log('createHash password', password);
     var cypher = Promise.promisify(bcrypt.hash);
     cypher(password, null, null)
     .bind(this)

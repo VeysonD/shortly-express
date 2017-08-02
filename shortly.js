@@ -27,32 +27,28 @@ app.use(session({
   secret: 'unicornKiller',
   resave: false,
   saveUninitialized: false
-  //cookie: { secure: true }
 }));
 
-//Create button for logout
-//foreign userids in linklist to display links only for that user
-//Create some tests
 
 app.get('/',
 function(req, res) {
   restrict(req, res, function() {
+    //console.log('homepage session', req.session);
     res.render('index');
   });
 });
 
 app.get('/login', function (req, res) {
+  //console.log('login session', req.session);
   res.render('login');
 });
 
-//create button for logout
 
-app.get('/logout', function(request, response) {
-  request.session.destroy(function() {
-    response.redirect('/login');
+app.get('/logout', function(req, res) {
+  req.session.destroy(function() {
+    res.redirect('/login');
   });
 });
-
 
 app.get('/create',
 function(req, res) {
@@ -146,7 +142,7 @@ app.post('/login',
       });
     }
   });
-//
+
 app.post('/signup',
 function(req, res) {
   var username = req.body.username;
@@ -160,7 +156,8 @@ function(req, res) {
     }).fetch().then(function (found) {
       if (found) {
         console.log('Username has been taken');
-        res.status(200).send(found.attributes);  //username taken
+        //res.status(200).send('Username taken');  //username taken
+        res.redirect('/signup');
       } else {
         bcrypt.hash(password, null, null, function(err, hash) {
           Users.create({

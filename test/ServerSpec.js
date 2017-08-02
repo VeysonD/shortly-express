@@ -7,6 +7,7 @@ var Users = require('../app/collections/users');
 var User = require('../app/models/user');
 var Links = require('../app/collections/links');
 var Link = require('../app/models/link');
+var bcrypt = require('bcrypt-nodejs');
 
 /************************************************************/
 // Mocha doesn't have a way to designate pending before blocks.
@@ -53,10 +54,10 @@ describe('', function() {
       .del()
       .catch(function(error) {
         // uncomment when writing authentication tests
-        // throw {
-        //   type: 'DatabaseError',
-        //   message: 'Failed to create test setup data'
-        // };
+        throw {
+          type: 'DatabaseError',
+          message: 'Failed to create test setup data'
+        };
       });
 
     // delete user Phillip from db so it can be created later for the test
@@ -65,11 +66,31 @@ describe('', function() {
       .del()
       .catch(function(error) {
         // uncomment when writing authentication tests
-        // throw {
-        //   type: 'DatabaseError',
-        //   message: 'Failed to create test setup data'
-        // };
+        throw {
+          type: 'DatabaseError',
+          message: 'Failed to create test setup data'
+        };
       });
+  });
+
+  db.knex('users')
+  .where('username', '=', 'Bob')
+  .del()
+  .catch(function(error) {
+    throw {
+      type: 'DatabaseError',
+      message: 'Failed to create test setup data'
+    };
+  });
+
+  db.knex('users')
+  .where('username', '=', 'Moo')
+  .del()
+  .catch(function(error) {
+    throw {
+      type: 'DatabaseError',
+      message: 'Failed to create test setup data'
+    };
   });
 
   describe('Link creation:', function() {
@@ -97,6 +118,8 @@ describe('', function() {
         });
       });
     });
+
+
 
     it('Only shortens valid urls, returning a 404 - Not found for invalid urls', function(done) {
       var options = {
@@ -312,6 +335,22 @@ describe('', function() {
       });
     });
 
+    it('Signup redirects to the signup page if username taken', function(done) {
+      var options = {
+        'method': 'POST',
+        'uri': 'http://127.0.0.1:4568/signup',
+        'json': {
+          'username': 'Phillip',
+          'password': 'Phillip'
+        }
+      };
+
+      request(options, function(error, res, body) {
+        expect(res.headers.location).to.equal('/signup');
+        done();
+      });
+    });
+
     it('Logs in existing users', function(done) {
       var options = {
         'method': 'POST',
@@ -327,6 +366,8 @@ describe('', function() {
         done();
       });
     });
+
+
 
     it('Users that do not exist are kept on login page', function(done) {
       var options = {
@@ -345,5 +386,82 @@ describe('', function() {
     });
 
   }); // 'Account Login'
+
+  describe('Account logout', function() {
+    var requestWithSession = request.defaults({jar: true});
+
+    beforeEach(function(done) {
+
+      //creates new user
+      new User({
+        'username': 'Bob',
+        'password': 'Bob'
+      }).save().then(function() {
+        var options = {
+          'method': 'POST',
+          'followAllRedirects': true,
+          'uri': 'http://127.0.0.1:4568/login',
+          'json': {
+            'username': 'Bob',
+            'password': 'Bob',
+          }
+        };
+
+        //signs in with new user
+        requestWithSession(options, function(error, res, body) {
+          done();
+        });
+
+      });
+    });
+
+
+    it('Users can logout', function(done) {
+      var options = {
+        'method': 'GET',
+        'followAllRedirects': true,
+        'uri': 'http://127.0.0.1:4568/logout'
+      };
+
+      request(options, function(error, res, body) {
+        console.log(res.headers);
+        expect(res.headers.location).to.be.undefined;
+        done();
+      });
+    });
+  });
+
+  describe('Password hashing', function() {
+
+    it('Stores passwords as hash values', function(done) {
+      var options = {
+        'method': 'POST',
+        'uri': 'http://127.0.0.1:4568/signup',
+        'json': {
+          'username': 'Moo',
+          'password': 'Cow'
+        }
+      };
+
+      request(options, function(error, res, body) {
+        db.knex('users')
+          .where('username', '=', 'Moo')
+          .then(function(res) {
+            if (res[0] && res[0]['password']) {
+              var password = res[0]['password'];
+              var comparison = bcrypt.compareSync('Cow', password);
+            }
+            expect(comparison).to.be.true;
+            done();
+          }).catch(function(err) {
+            throw {
+              type: 'DatabaseError',
+              message: 'Failed to create test setup data'
+            };
+          });
+      });
+
+    });
+  });
 
 });
